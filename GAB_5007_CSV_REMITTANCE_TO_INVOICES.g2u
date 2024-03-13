@@ -1,0 +1,121 @@
+Program.Sub.ScreenSU.Start
+Gui.frmCSVImport..Create
+Gui.frmCSVImport..Caption("CSV Import")
+Gui.frmCSVImport..Size(6225,2130)
+Gui.frmCSVImport..MinX(0)
+Gui.frmCSVImport..MinY(0)
+Gui.frmCSVImport..Position(0,0)
+Gui.frmCSVImport..BackColor(-2147483633)
+Gui.frmCSVImport..MousePointer(0)
+Gui.frmCSVImport..Event(UnLoad,frmCSVImport_UnLoad)
+Gui.frmCSVImport.cmdBrowse.Create(Button)
+Gui.frmCSVImport.cmdBrowse.Size(855,375)
+Gui.frmCSVImport.cmdBrowse.Position(4770,300)
+Gui.frmCSVImport.cmdBrowse.Caption("^")
+Gui.frmCSVImport.cmdBrowse.Event(Click,cmdBrowse_Click)
+Gui.frmCSVImport.txtCSVFile.Create(TextBox,"",True,4485,300,0,135,300,True,0,"Arial",8,-2147483643,1)
+Gui.frmCSVImport.cmdProcess.Create(Button)
+Gui.frmCSVImport.cmdProcess.Size(1575,375)
+Gui.frmCSVImport.cmdProcess.Position(120,765)
+Gui.frmCSVImport.cmdProcess.Caption("Process")
+Gui.frmCSVImport.cmdProcess.Event(Click,cmdProcess_Click)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.cmdBrowse_Click.Start
+V.Local.sFile.Declare(String)
+F.Intrinsic.UI.ShowOpenFileDialog("",".csv",V.Local.SFILE)
+F.intrinsic.control.if(Variable.local.sFile,"=","***CANCEL***")
+F.intrinsic.control.else
+	GUI.frmCSVImport.txtCSVFile.Text(v.Local.sFile)
+F.Intrinsic.Control.endif
+Program.Sub.cmdBrowse_Click.End
+
+Program.Sub.cmdProcess_Click.Start
+'STEP 1 - Get CSV file contents into a datatable, everything must be formatted as text.
+v.Local.sFileString.Declare(string)
+v.Local.lbound.declare(long)
+v.Local.i.Declare(long)
+v.Local.j.Declare(long)
+v.Local.sDate.Declare(string)
+v.Local.sReference.Declare(string)
+v.Local.sAmount.Declare(string)
+v.Local.sDiscount.Declare(string)
+v.Local.sPaid.Declare(string)
+v.Local.sbuildstring.Declare(string)
+v.Local.iRowCnt.Declare(long)
+v.Local.sReadRow.Declare(string)
+v.Local.sTemp.Declare(string)
+v.Local.sSearch.Declare(string)
+v.Local.sret.Declare(string)
+v.Local.sAmtToApply.Declare(string)
+v.local.swriteRow.Declare(string)
+v.Local.sAmtToDisc.Declare(string)
+v.Local.sErrorMsg.Declare(string)
+v.Local.bIsNumber.Declare(Boolean)
+V.Local.fTotal.Declare(float)
+
+F.Intrinsic.File.File2String(V.Screen.frmCSVImport!txtCSVFile.Text,V.Local.sFileString)
+F.Intrinsic.String.Split(V.Local.sFileString,V.Ambient.NewLine,V.Local.sFileString)
+f.Intrinsic.Control.For(v.Local.i,1,v.Local.sFileString.UBound,1)
+	f.Intrinsic.String.Concat(v.Local.sbuildstring,v.Local.sFileString(v.Local.i),"!*!",v.Local.sbuildstring)
+f.Intrinsic.Control.Next(v.Local.i)
+F.Data.DataTable.CreateFromString("DT",v.Local.sbuildstring,"Date*!*Reference*!*Amount*!*Discount*!*Paid","String*!*String*!*String*!*String*!*String",",","!*!",true)
+
+'Step 2 -- Load in the BDF
+'f.Intrinsic.Debug.ShowCallerInfo
+F.Intrinsic.BDF.Load("AUX001","AUX001")
+F.Intrinsic.BDF.Clone("AUX001","Clone")
+F.Intrinsic.BDF.ReadRowCount("AUX001",V.Local.iRowCnt)
+F.Intrinsic.Math.Sub(V.Local.iRowCnt,1,V.Local.iRowCnt)
+F.Intrinsic.Control.For(V.Local.j,0,V.Local.iRowCnt,1)
+	F.Intrinsic.BDF.ReadRow("AUX001",V.Local.j,V.Local.sReadRow)
+	F.Intrinsic.String.Split(V.Local.sReadRow,"|~|",V.Local.sTemp)
+	f.Intrinsic.String.Build("Reference='{0}'",v.Local.stemp(2).trim,v.Local.sSearch)
+	f.Data.DataTable.Select("dt",v.Local.sSearch,v.local.sret)
+	f.Intrinsic.Control.If(v.Local.sret.Trim,=,"***NORETURN***")
+		F.Intrinsic.String.Concat(V.Local.sTemp(0),"|~|",V.Local.sTemp(1),"|~|",V.Local.sTemp(2),"|~|",V.local.sWriteRow)
+		F.Intrinsic.String.Concat(V.local.swriteRow,V.Local.sTemp(3),"|~|",V.local.sTemp(4),"|~|",V.Local.sTemp(5),"|~|",V.local.sWriteRow)
+		F.Intrinsic.String.Concat(V.local.swriteRow,V.Local.sTemp(6),"|~|",v.Local.sTemp(7),"|~|",V.Local.sWriteRow)
+		F.Intrinsic.String.Concat(V.local.swriteRow,v.Local.sTemp(8),"|~|",V.Local.sTemp(9),"|~|",V.Local.sTemp(10),"|~|",V.Local.sWriteRow)
+		F.Intrinsic.String.Concat(V.local.swriteRow,V.Local.sTemp(11),"|~|",V.Local.sTemp(12),V.Local.sWriteRow)
+	f.Intrinsic.Control.Else
+		f.Intrinsic.Math.IsNumeric(v.Local.sret,v.Local.bIsNumber)
+		f.Intrinsic.Control.If(v.Local.bIsNumber)	
+			v.Local.sAmtToApply.Set(v.DataTable.dt(v.Local.sret).Paid!FIELDVAL)
+			v.Local.sAmtToDisc.Set(v.DataTable.DT(v.local.sret).Discount!FIELDVAL)
+			f.Intrinsic.Math.Add(v.Local.fTotal,v.Local.sAmtToApply,v.Local.fTotal)
+			F.Intrinsic.String.Concat("P","|~|",V.Local.sTemp(1),"|~|",V.Local.sTemp(2),"|~|",V.local.sWriteRow)
+			F.Intrinsic.String.Concat(V.local.swriteRow,V.Local.sTemp(3),"|~|",V.local.sTemp(4),"|~|",V.Local.sTemp(5),"|~|",V.local.sWriteRow)
+			F.Intrinsic.String.Concat(V.local.swriteRow,V.Local.sTemp(6),"|~|",v.Local.sAmtToApply,"|~|",V.Local.sWriteRow)
+			F.Intrinsic.String.Concat(V.local.swriteRow,v.Local.sAmtToDisc,"|~|",V.Local.sTemp(9),"|~|",V.Local.sTemp(10),"|~|",V.Local.sWriteRow)
+			F.Intrinsic.String.Concat(V.local.swriteRow,V.Local.sTemp(11),"|~|",V.Local.sTemp(12),V.Local.sWriteRow)
+		f.Intrinsic.Control.Else
+			f.Intrinsic.String.Concat("Invoice ",v.Local.sTemp(2)," has picked up a duplicate.  Please correct in file and reimport.",v.Local.sErrorMsg)
+			f.Intrinsic.UI.Msgbox(v.Local.sErrorMsg)
+			f.Intrinsic.Control.End
+		f.Intrinsic.Control.EndIf
+	f.Intrinsic.control.EndIf
+	F.Intrinsic.BDF.WriteRow("Clone",V.Local.sWriteRow.Trim)
+f.Intrinsic.Control.Next(v.Local.j)
+F.Intrinsic.BDF.Save("Clone","AUX001")
+v.Passed.000003.Set(v.Local.fTotal)
+
+f.Intrinsic.Control.End
+Program.Sub.cmdProcess_Click.End
+
+Program.Sub.frmCSVImport_UnLoad.Start
+f.Intrinsic.Control.End
+Program.Sub.frmCSVImport_UnLoad.End
+
+Program.Sub.Main.Start
+'Hook numbers 37910 and 37916
+f.Intrinsic.Control.If(v.Caller.Hook,=,"37910")
+	v.Passed.000010.Set("Import")
+f.Intrinsic.Control.Else
+	gui.frmCSVImport..Show
+f.Intrinsic.Control.EndIf
+
+Program.Sub.Main.End
